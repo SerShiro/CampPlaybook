@@ -1,0 +1,41 @@
+---
+- name: Настройка SSH и пользователя на хосте
+  hosts: all
+  become: yes 
+  vars:
+    ssh_pub: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCfrfE0OluoNHb5dOpV4RpWmVXvMBWc17kaM7DDjCm7romNQMDX95i5Fc67Q3c47pvrm/qi/ZqsCeqNdLl5+VV41rVz701Pj/UUr2FZpIm80Ur0iM1DFy81GKo/lS1INopqdd4KvUnM2d8yqfJSm9m5Cq7AM9S0mqObuMayfqNR4YcOlm9fnEMqhrSWbBVvdghPNiBzs7T9RzEq/0w8rs743tCF7MICv72fdgYadrGlxFsFWSujwZXQLI4VUSxKirJBCUgfR0u84gZK/wUzJ4EPqMichniTf24AsvidozUHWMDmQ+pUaBTyxjD5egi8LcV0EHH4feHwzacA2gyGbOtFK3wpa/dgE1yvPTkPKnccIXKnbel0mfxfsBVkclc5/DnczmrdaGrX5DCrQbI+HO4lhr4KzAm/pw6qfLcw8KjCdVKsnCRXykdat8KUwNAeolknRWdKDqdsbyXBj+ePMTlMR8YmoBj9znYWwOnAAyu56utiteL0oq9YPkb7ZGF5ZOE=
+  tasks:
+    - name: Install sshpass
+      apt:
+        name: sshpass
+        state: present
+
+    - name: Create user
+      user:
+        name: cloudru
+        password: "{{ 'cloudpass' | password_hash('sha512') }}" 
+        state: present
+
+    - name: Write public ssh key
+      copy:
+        content: "{{ ssh_pub }}"
+        dest: ~/.ssh/my_public_ssh_key.pub
+  
+    - name: Copy public ssh key
+      authorized_key:
+        key: "{{ lookup('file', '~/.ssh/my_public_ssh_key.pubb') }}"
+        
+    - name: Deny ssh login from root user
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+      notify:
+        - restart ssh
+
+        
+  handlers:
+   - name: restart ssh
+     service:
+      name: sshd
+      state: restarted
